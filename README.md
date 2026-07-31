@@ -30,63 +30,85 @@ Cálculo exato em dias/anos do intervalo entre a data da condenação e a data d
 * **Análise Geográfica:** Volume de execuções distribuído por condado (County) e por distrito do Texas.
 
 ## 📈 **Consultas realizadas:**
------ANALISE DE BASE DE DADOS À DETENTOS SUBMETIDOS AO CORREDOR DE MORTE NO TEXAS ENTRE 1976 A 2018
----Verificar a media de idade dos condenados ao corredor da morte no Texas
-SELECT DISTINCT ROUND(AVG(Age), 2) AS idade_media
-FROM
-  `projeto-final-503519.execucoes_projeto.corredor_morte`  ----Desde o dia que se iniciou com processo de condenacoes à morte do texas, dentre as 553 analisadas a idade media dos detentos era de 39,47 de idade;
+-- =======================================================================================
+-- ANÁLISE DE BASE DE DATA: DETENTOS SUBMETIDOS AO CORREDOR DA MORTE NO TEXAS (1976 - 2018)
+-- =======================================================================================
 
----Media escolar
-SELECT DISTINCT ROUND(AVG(Highest_Education_Level), 2) AS escolaridade_media
-FROM `projeto-final-503519.execucoes_projeto.corredor_morte`
----idade maxima e minima dos detentos
-SELECT DISTINCT MAX(Age) AS idade_maxima, MIN(Age) AS idade_minima
-FROM `projeto-final-503519.execucoes_projeto.corredor_morte`
+-- 1. Média de idade dos condenados
+-- Nota: Das 553 execuções analisadas, a idade média dos detentos foi de 39,47 anos.
+SELECT 
+  ROUND(AVG(Age), 2) AS idade_media 
+FROM `projeto-final-503519.execucoes_projeto.corredor_morte`;
 
----Quanto tempo de espera levou entre a sentença até a execução do detento?
-SELECT DISTINCT
-  Execution_number,
-  CONCAT(First_name, " ", Last_name) AS nome_completo,
-  Date_of_conviction,
-  Execution_Date,
-  DATE_DIFF(Execution_Date, Date_of_conviction, YEAR) AS anos_de_espera,
-  CASE
-    WHEN DATE_DIFF(Execution_Date, Date_of_conviction, YEAR) <= 10
-      THEN "Dentro do Limite de espera"
-    ELSE "Acima do Limite de espera"
-    END AS periodo_espera
-FROM `projeto-final-503519.execucoes_projeto.corredor_morte`
 
----Agrupar os individuos por raça
-SELECT DISTINCT race, COUNT(Execution_number) AS numero_detentos
-FROM `projeto-final-503519.execucoes_projeto.corredor_morte`
-GROUP BY 1
-ORDER BY
-  2 DESC
-    ---Desde os anos de 1976 até 2018 no texas, foram levados ao corredor da morte 245 individuos de raça branca, 201 de raça negra e 105 de raça Espânica. outros individuos foi em numero de 2, sendo que estes estavam em proporcionalidade entre asiaticos e outro (de raça não esclarecida)
-    ----Execucoes por condado
-    WITH numero_por_condado AS (
-      SELECT DISTINCT County AS Condado, COUNT(Execution_number) AS Executions
-      FROM `projeto-final-503519.execucoes_projeto.corredor_morte`
-      GROUP BY 1
-    )
-SELECT *, DENSE_RANK() OVER (ORDER BY Executions DESC) AS Ranking
-FROM numero_por_condado
-ORDER BY 2 DESC
+-- 2. Média escolar (anos de estudo) dos detentos
+SELECT 
+  ROUND(AVG(Highest_Education_Level), 2) AS escolaridade_media 
+FROM `projeto-final-503519.execucoes_projeto.corredor_morte`;
 
----Decricao de execucoes por distrito
-SELECT DISTINCT
-  COALESCE(district, "Desconhecido") AS district,
-  COUNT(Execution_number) AS Executions
-FROM `projeto-final-503519.execucoes_projeto.corredor_morte`
-GROUP BY 1
-ORDER BY 2 DESC
 
-----Execucoes por ano
-SELECT DISTINCT
-  EXTRACT(YEAR FROM Execution_Date) AS Year, COUNT(Execution_Number) AS contagem
-FROM `projeto-final-503519.execucoes_projeto.corredor_morte`
-GROUP BY 1
-ORDER BY 2 DESC
+-- 3. Idade máxima e mínima registrada entre os detentos
+SELECT 
+  MAX(Age) AS idade_maxima, 
+  MIN(Age) AS idade_minima 
+FROM `projeto-final-503519.execucoes_projeto.corredor_morte`;
 
+
+-- 4. Tempo de espera em anos entre a sentença de condenação e a execução
+SELECT 
+  Execution_number, 
+  CONCAT(First_name, ' ', Last_name) AS nome_completo, 
+  Date_of_conviction, 
+  Execution_Date, 
+  DATE_DIFF(Execution_Date, Date_of_conviction, YEAR) AS anos_de_espera, 
+  CASE 
+    WHEN DATE_DIFF(Execution_Date, Date_of_conviction, YEAR) <= 10 THEN 'Dentro do Limite de espera' 
+    ELSE 'Acima do Limite de espera' 
+  END AS periodo_espera  
+FROM `projeto-final-503519.execucoes_projeto.corredor_morte`
+ORDER BY anos_de_espera DESC;
+
+
+-- 5. Volumetria de indivíduos agrupados por raça/etnia
+-- Nota histórica: Distribuição de 245 brancos, 201 negros, 105 hispânicos e 2 de outras etnias.
+SELECT 
+  race, 
+  COUNT(Execution_number) AS numero_detentos 
+FROM `projeto-final-503519.execucoes_projeto.corredor_morte` 
+GROUP BY race 
+ORDER BY numero_detentos DESC;
+
+
+-- 6. Ranking de execuções por condado utilizando CTE e Window Function (DENSE_RANK)
+WITH numero_por_condado AS (
+  SELECT 
+    County AS Condado, 
+    COUNT(Execution_number) AS Executions 
+  FROM `projeto-final-503519.execucoes_projeto.corredor_morte` 
+  GROUP BY County
+)
+SELECT 
+  Condado,
+  Executions,
+  DENSE_RANK() OVER(ORDER BY Executions DESC) AS Ranking 
+FROM numero_por_condado 
+ORDER BY Executions DESC;
+
+
+-- 7. Distribuição de execuções por distrito judicial (Tratamento de nulos com COALESCE)
+SELECT 
+  COALESCE(district, 'Desconhecido') AS distrito, 
+  COUNT(Execution_number) AS Executions 
+FROM `projeto-final-503519.execucoes_projeto.corredor_morte` 
+GROUP BY district 
+ORDER BY Executions DESC;
+
+
+-- 8. Análise temporal: Volume de execuções por ano
+SELECT 
+  EXTRACT(YEAR FROM Execution_Date) AS Ano, 
+  COUNT(Execution_Number) AS total_execucoes 
+FROM `projeto-final-503519.execucoes_projeto.corredor_morte` 
+GROUP BY Ano 
+ORDER BY total_execucoes DESC;
 
